@@ -85,5 +85,41 @@ func main()  {
 		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status":"success"})
 	})
 
+	// PUT //activities:id
+	app.Put("/activities/:id", func (c *fiber.Ctx) error {
+		id := c.Params("id")
+		var activity Activity
+		err := c.BodyParser(&activity)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message":err.Error()})
+		}
+
+		if err = validate.Struct(&activity); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message":err.Error()})
+		}
+
+		sqlStatement := `UPDATE activities SET title = $1, category = $2, description = $3, activity_date = $4
+			WHERE id = $5
+			RETURNING id`
+		err = db.QueryRow(sqlStatement, activity.Title, activity.Category, activity.Description, activity.ActivityDate, id).Scan(&activity.ID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message":err.Error()})
+		}
+
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status":"success"})
+	})
+
+	// DELETE //activities:id
+	app.Delete("/activities/:id", func (c *fiber.Ctx) error {
+		id := c.Params("id")
+		sqlStatement := `DELETE FROM activities WHERE id = $1`
+		_, err := db.Exec(sqlStatement, id)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message":err.Error()})
+		}
+
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status":"success"})
+	})
+
 	app.Listen(":8081")
 }
